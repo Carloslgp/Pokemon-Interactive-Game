@@ -7,7 +7,12 @@ import math
 import random
 import requests
 import io
+import os
 from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+
+SPRITE_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sprite_cache")
+os.makedirs(SPRITE_CACHE_DIR, exist_ok=True)
 from PIL import Image, ImageTk
 
 file_path = ["musica.mp3", "battle.mp3"]
@@ -467,10 +472,46 @@ def batalha():
             
             #definir o sprite dos pokémons
             image = self.json["sprites"][side]
-            image_stream = urlopen(image).read()
-            image_file = io.BytesIO(image_stream)
-            self.image = pygame.image.load(image_file).convert_alpha()
-            
+
+            #usa um cache local para não precisar baixar o mesmo sprite toda vez
+            cache_file = os.path.join(SPRITE_CACHE_DIR, f"{self.name.lower()}_{side}.png")
+
+            if os.path.exists(cache_file):
+                with open(cache_file, "rb") as f:
+                    image_stream = f.read()
+            else:
+                #tenta baixar o sprite algumas vezes caso o servidor esteja sobrecarregado (erro 503)
+                max_retries = 4
+                image_stream = None
+                for attempt in range(max_retries):
+                    try:
+                        image_stream = urlopen(image, timeout=10).read()
+                        break
+                    except (HTTPError, URLError) as e:
+                        if attempt == max_retries - 1:
+                            print(f"Não foi possível baixar o sprite de {self.name} ({side}): {e}. Usando imagem substituta.")
+                            break
+
+                        #espera antes de tentar de novo sem travar a janela do tkinter
+                        wait_time = 1.5 * (attempt + 1)
+                        waited = 0.0
+                        while waited < wait_time:
+                            janela.update()
+                            time.sleep(0.1)
+                            waited += 0.1
+
+                if image_stream is not None:
+                    with open(cache_file, "wb") as f:
+                        f.write(image_stream)
+
+            if image_stream is not None:
+                image_file = io.BytesIO(image_stream)
+                self.image = pygame.image.load(image_file).convert_alpha()
+            else:
+                #imagem substituta para o jogo continuar mesmo se o download falhar
+                self.image = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+                self.image.fill((190, 190, 190, 255))
+
             #escalar a imagem 
             scale = self.size / self.image.get_width()
             new_width = self.image.get_width() * scale
