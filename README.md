@@ -17,6 +17,13 @@
   * Customtkinter
   * PokéAPI
 
+# Capturas de Tela:
+  ### Seleção de Pokémon
+  <img src="img/1.png" alt="Tela de seleção de Pokémon" width="400">
+
+  ### Batalha
+  <img src="img/2.png" alt="Tela de batalha Pokémon" width="400">
+
 # Manual de "Utilização"  e "Requisitos" estão na pasta "Documentos"
 
 
